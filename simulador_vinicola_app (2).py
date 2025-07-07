@@ -2,11 +2,12 @@ import streamlit as st
 import numpy as np
 from scipy.integrate import odeint
 import plotly.graph_objects as go
+import pandas as pd
 
 # Título e descrição do app
 st.set_page_config(page_title="Simulador de Vinícola", layout="centered")
 st.title("🍷 Simulador de Produção de Vinho")
-st.markdown("Este app simula as etapas básicas da produção de vinho, da recepção das uvas ao engarrafamento.")
+st.markdown("Este app simula as etapas básicas da produção de vinho, da recepção das uvas ao engarrafamento, com indicadores de rendimento, custo e lucratividade.")
 
 st.header("🍇 1. Recepção das Uvas")
 input_mode_uvas = st.radio("Modo de entrada - Uvas (kg):", ["Deslizador", "Entrada manual"], key="uvas")
@@ -81,6 +82,11 @@ fig.update_layout(title='Simulação da Fermentação Alcoólica',
 
 st.plotly_chart(fig)
 
+# Gerar CSV com os resultados
+df_resultado = pd.DataFrame({"Tempo (h)": t, "Biomassa (g/L)": X, "Açúcar (g/L)": S, "Etanol (g/L)": P})
+csv = df_resultado.to_csv(index=False).encode('utf-8')
+st.download_button("📥 Baixar dados da fermentação (CSV)", data=csv, file_name="fermentacao.csv", mime="text/csv")
+
 st.header("🧼 3. Clarificação e Estabilização")
 input_mode_perda = st.radio("Modo de entrada - Perda na estabilização (%):", ["Deslizador", "Entrada manual"], key="estabilizacao")
 if input_mode_perda == "Deslizador":
@@ -105,10 +111,26 @@ n_garrafas = int(volume_engarrafado / volume_garrafa)
 
 st.metric("Garrafas produzidas", n_garrafas)
 
-st.header("📦 6. Armazenamento Final")
+# Cálculo de custos
+st.header("💰 6. Custo e Lucro")
+custo_uva = uvas_kg * 1.20  # R$/kg
+taxa_fermentacao = fermentacao_litros * 0.30  # R$/L
+custo_garrafa = n_garrafas * 2.00  # R$/garrafa
+custo_total = custo_uva + taxa_fermentacao + custo_garrafa
+
+st.write(f"Custo total de produção: R$ {custo_total:.2f}")
+
+# Receita e lucro
+preco_unitario = st.slider("Preço de venda por garrafa (R$)", 10.0, 200.0, 65.0)
+receita_total = preco_unitario * n_garrafas
+lucro_total = receita_total - custo_total
+
+st.metric("Lucro estimado", f"R$ {lucro_total:.2f}")
+
+st.header("📦 7. Armazenamento Final")
 temperatura_armazenamento = 15
 volume_final = volume_engarrafado
 st.write(f"Volume armazenado: **{volume_final:.1f} L** a **{temperatura_armazenamento}°C**")
 
 # Resultado final
-st.success(f"✅ Produção total: {n_garrafas} garrafas de {volume_garrafa} L")
+st.success(f"✅ Produção total: {n_garrafas} garrafas de {volume_garrafa} L | Lucro: R$ {lucro_total:.2f}")
